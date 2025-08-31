@@ -3,11 +3,6 @@
 May 29, 2025<br>
 Presenter: Anant Agarwal, Staff Software Engineer, Instacart<br>
 
-### Scale
-- Fullfilled 300 million orders in FY 2024<br>
-
-![Usage by numbers](/images/airflow-temporal-usage-by-numbers-instacart.png)
-
 Orchestration
 - an automated coordination and management of workflows
 - ensures reliablity and scalability
@@ -17,7 +12,12 @@ Workflow
 
 ![Benefits of an Orchestration Workflow](/images/benefits-of-orchestration-workflow-instacart.png)
 
-![Airflow Deployment at Instacart](/images/airflow-deployment-at-instacart.png)
+![Airflow Deployment at Instacart](/images/airflow-deployment-at-instcart.png)
+
+### Scale
+- Fullfilled 300 million orders in FY 2024
+  ![Usage by numbers](/images/airflow-temporal-usage-by-numbers-instacart.png)
+
 
 ### Technology Stack
 
