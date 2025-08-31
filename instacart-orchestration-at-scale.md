@@ -4,21 +4,34 @@ May 29, 2025<br>
 Presenter: Anant Agarwal, Staff Software Engineer, Instacart<br>
 
 ### Scale
-- Fullfilled 300 million orders in FY 2024
+- Fullfilled 300 million orders in FY 2024<br>
+
+![Usage by numbers](/images/airflow-temporal-usage-by-numbers-instacart.png)
+
+Orchestration
+- an automated coordination and management of workflows
+- ensures reliablity and scalability
+
+Workflow
+- a fundamental unit of orchestration
+
+![Benefits of an Orchestration Workflow](/images/benefits-of-orchestration-workflow-instacart.png)
+
+![Airflow Deployment at Instacart](/images/airflow-deployment-at-instacart.png)
 
 ### Technology Stack
 
 | **Product / Component**  | **Notes**               | **Slides**                      |
 |:-------------------------|:------------------------|:--------------------------------|
-| [Apache Airflow](https://airflow.apache.org) | • Robust batch processing system | |
-| [Temporal](https://temporal.io) | • Horizontal scaling<br> • Low latency<br> • Exactly-once execution guarantee<br> • e.g. payment capture, display ads | |
+| [Apache Airflow](https://airflow.apache.org) | • Robust batch processing system |![Apache Airflow](/images/apache-airflow-at-instacart.png) |
+| [Temporal](https://temporal.io) | • Horizontal scaling<br> • Low latency<br> • Exactly-once execution guarantee<br> • e.g. payment capture, display ads | ![Temporal](/images/temporal-at-instacart.png) |
 | [Postgres](https://www.postgresql.org) with extensions<br> • [pgcat](https://pgxn.org/dist/pgcat)<br> • [pgbouncer](https://www.pgbouncer.org) | backend database | |
 | [Amazon Elastic Container Service (ECS)](https://aws.amazon.com/ecs/)| Applications deployed as Dockerized containers | |
 | [Celery](https://docs.celeryq.dev/en/stable/getting-started/introduction.html) | Open source distributed task queue system | |
 | [Apache Cassandra](https://cassandra.apache.org/) | | |
 | [Elasticsearch](https://github.com/elastic/elasticsearch) | | |
-| [Terraform](https://developer.hashicorp.com/terraform) | | |
-| [Datadog](https://www.datadoghq.com/) | | |
+| [Terraform](https://developer.hashicorp.com/terraform) | IaC | |
+| [Datadog](https://www.datadoghq.com/) | Monitoring & Alerting | |
 
 
 ### Key Takeaways
