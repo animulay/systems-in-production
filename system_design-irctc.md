@@ -13,6 +13,16 @@ Q2. Why does predictability make the problem harder not easier?
 
 and it provided some good explanation about the differences.
 
+As a natural follow up question, I asked Claude how it would design such system from scratch and followed up with several questions about various assumptions, design choices etc.
+
+```
+My conclusions:<br>
+1. LLMs operate on an index built over vast knowledgebase. They can be a good companion for research.
+2. But LLM's also fake things with confidence.
+3. In some cases, as the conversation progresses, the quality of responses tend to degrade.
+3. The hardest and the most under appreciated part is that for productive collaboration with LLMs, the onus is on user to understand / evaluate LLM provided output and steer it in the right direction.
+```
+
 #### Q1. What Amazon knows about traffic that IRCTC does not
 
 The core insight isn't about scale — it's about **traffic shape**.
@@ -135,18 +145,22 @@ You're right, but the distribution kills you.
 
 The partitioning is real: ~200+ Tatkal-eligible trains daily × journey date × coach class (SL, 3A, 2A, 1A) × quota type. So theoretically the keyspace is large. The problem is it follows a severe power law. Mumbai→Delhi Rajdhani AC2 on a Friday gets 40% of all requests. An obscure Patna→Ranchi express gets 0.01%.
 
-[**My Note:**] >>>> __I could not verify the above point about 200+ Tatkal-eligible trains__**. <<<<
+```
+Note: I could not verify the above point about 200+ Tatkal-eligible trains.
+```
 
 This matters architecturally because:
 - Your shard for popular routes needs disproportionate capacity
 - You can't know which shard will be hot without demand prediction
 - Within the hot shard, you still have 500K users fighting over 50 seats — the thundering herd is just smaller, not gone
 
-[**My Note:**] >>>> The assumption: __500K users fighting over 50 seats__**  sounds suspicious. <<<<
+```
+Note: The assumption: __500K users fighting over 50 seats__ sounds suspicious.
+```
 
 The partitioning helps with horizontal scaling of cold routes but does almost nothing for the routes that are actually causing IRCTC to crash. The right response: yes, use it for sharding, but combine it with a per-shard queue, not raw concurrent writes.
 
-### Point 2 — In-Memory DB + WAL
+#### Point 2 — In-Memory DB + WAL
 
 Correct direction, but you're solving the wrong bottleneck.
 
@@ -271,7 +285,9 @@ The full principle:
 
 #### Architecture Overview
 
-[**My Note:**] >>>> __Presenting a solution with high confidence ...__**. <<<<
+```
+Note: __Presenting a solution with high confidence__.
+```
 
 ```
 3 million users — Tatkal booking, 10:00:00 AM
@@ -316,23 +332,23 @@ The full principle:
 
 #### Before 10 AM — queue formation
 
-At 9:50 AM, Cloudflare Workers open a queue registration window. Any authenticated user who lands on the booking page gets a signed JWT queue token containing their `user_id`, `train_id`, `class`, a `random_nonce`, and an HMAC-SHA256 signature. At 9:59:55, the window closes and the Envoy admission controller shuffles all tokens — assigning queue positions by lottery, not by connection time.
+At 9:50 AM, [Cloudflare Workers](https://workers.cloudflare.com) open a queue registration window. Any authenticated user who lands on the booking page gets a signed JWT queue token containing their `user_id`, `train_id`, `class`, a `random_nonce`, and an HMAC-SHA256 signature. At 9:59:55, the window closes and the Envoy admission controller shuffles all tokens — assigning queue positions by lottery, not by connection time.
 
 Pre-warm also happens in this window: Go GC is triggered to clean up, Kafka consumer group rebalances, connection pools to PostgreSQL are saturated.
 
 #### Tech stack, layer by layer
 
-**Edge — Cloudflare (not AWS Shield alone)**
+**Edge — [Cloudflare](https://www.cloudflare.com) (not AWS Shield alone)**
 
 Cloudflare has PoPs in Mumbai, Chennai, and Delhi — the first TCP handshake terminates at the edge. Cloudflare Turnstile handles bot scoring without user-facing CAPTCHAs. Cloudflare Workers issue queue tokens at the edge with sub-millisecond latency.
 
-**Gateway — Envoy Proxy with a custom filter**
+**Gateway — [Envoy Proxy](https://www.envoyproxy.io) with a custom filter**
 
 Envoy's filter chain lets us write a custom Go plugin that reads the JWT queue position, decides whether to admit the request immediately or hold it on a Server-Sent Events connection for a queue position update. The user sees a live "position 4,821 of 47,000" counter updating every second.
 
-**Message queue — Apache Kafka**
+**Message queue — [Apache Kafka](https://kafka.apache.org)**
 
-Partition key: `SHA256(train_id + journey_date + class) % N`. Each partition maps 1:1 to one booking engine actor. Why Kafka over RabbitMQ: ordered partitions, high throughput, and replayability — if the booking engine crashes, it replays from its last committed offset.
+Partition key: `SHA256(train_id + journey_date + class) % N`. Each partition maps 1:1 to one booking engine actor. Why [Kafka](https://kafka.apache.org) over [RabbitMQ](https://www.rabbitmq.com): ordered partitions, high throughput, and replayability — if the booking engine crashes, it replays from its last committed offset.
 
 **Booking engine — custom Go actors**
 
@@ -353,9 +369,11 @@ There's also a practical hiring consideration: Go engineers are far more availab
 If you handed me a team of five experienced Rust engineers, I'd use Rust for the booking engine — you'd get better P99 latency and tighter memory control. If you handed me a team of five experienced Zig engineers, I'd still choose Rust over Zig because Zig's async story and ecosystem aren't production-ready for this class of networked system yet.
 But for a real team building this in India today, Go gives you 95% of the performance with half the engineering cost and a much larger hiring pool. The 5% you leave on the table is in the noise given the design-level decisions (batching, in-memory state, Kafka partitioning) that already did the heavy lifting.
 
-[**My Note:**] >>>> __^^^^ Bluff with confidence ... ^^^^__**. <<<<
+```
+Note: __Bluff with confidence__.
+```
 
-**Persistence — PostgreSQL (async)**
+**Persistence — [PostgreSQL](https://www.postgresql.org) (async)**
 
 PostgreSQL is NOT on the critical path. The booking engine confirms the booking and writes the result to the Kafka result topic immediately. PostgreSQL is written to asynchronously by a separate consumer.
 
@@ -363,9 +381,9 @@ PostgreSQL is NOT on the critical path. The booking engine confirms the booking 
 
 A separate Go service consumes the Kafka result topic and pushes `BOOKING_CONFIRMED` or `NO_SEATS_AVAILABLE` via WebSocket to the user's browser.
 
-**Payment — Razorpay pre-authorization**
+**Payment — [Razorpay](https://razorpay.com) pre-authorization**
 
-Users pre-authorize payment (UPI mandate or saved card) when they register for the queue at 9:50 AM. Payment is entirely off the critical path.
+Users pre-authorize payment ([UPI](upichalega.com) mandate or saved card) when they register for the queue at 9:50 AM. Payment is entirely off the critical path.
 
 #### Infrastructure
 
@@ -437,7 +455,9 @@ The booking engine's hot path is a few map lookups and integer decrements. The a
 
 __LLMs genuinely help with syntax, idioms, boilerplate, and explaining compiler errors. What they don't replace is operational intuition — knowing why a subtle race condition is happening at 3 AM in production, reading a flame graph to find a hot path you didn't expect, or understanding why the borrow checker is rejecting something in a way that matters. For a booking system where a bug means double-sold seats (real money, real people), that gap matters more than it does for a CRUD app. The correction stands, but it's not a full rebuttal.__
 
-[**My Note:**] >>>> __^^^^ Another confident bluff ... ^^^^__**. <<<<
+```
+Note: __Another confident bluff ...__.
+```
 
 #### C++20 coroutines — genuinely strong
 
@@ -476,7 +496,9 @@ Honest estimate: SIMD gets ~15–20% throughput improvement on the serialization
 
 SIMD intrinsics are notoriously subtle — alignment requirements, lane ordering, signed vs unsigned comparison semantics. In a financial system, silent data corruption (two confirmed bookings for the same seat) is categorically worse than a crash.
 
-[**My Note:**] >>>> __^^^^ There you go again ... ^^^^__**. <<<<
+```
+Note: __There you go again ...__.
+```
 
 #### Head-to-head
 
@@ -492,7 +514,9 @@ SIMD intrinsics are notoriously subtle — alignment requirements, lane ordering
 
 For a booking engine with a deliberate 50ms batch window, you're leaving performance on the table by using C++20 — but the table you're leaving it on is already far from the constraint.
 
-[**My Note:**] >>>> __^^^^ LLM slope ... ^^^^__**. <<<<
+```
+Note: __LLM slope ...__
+```
 
 If performance runs show the bottleneck is Kafka I/O or seat scanning throughput, C++20 + io_uring + SIMD is the right tool. The engineering sequence should be:
 
@@ -574,7 +598,9 @@ Even for append-only insert workloads, MVCC creates problems:
 
 The honest conclusion: PostgreSQL is the wrong tool for the high-volume booking write path. It's the right tool for a narrow set of operational concerns.
 
-[**My Note:**] >>>> __^^^^Taking back earlier recommendation ... ^^^^__**. <<<<
+```
+Note: __Taking back earlier recommendation ...__
+```
 
 **Write path — ScyllaDB**
 
@@ -604,7 +630,7 @@ Kafka result topic
       └── ClickHouse consumer  → analytics (revenue, demand, utilization)
 ```
 
-The original PostgreSQL-as-system-of-record was doing three jobs that three different tools handle better individually. PostgreSQL's generalism is a liability at the write volumes IRCTC generates in a 15-minute window.
+The original PostgreSQL-as-system-of-record was doing 3 jobs that 3 different tools handle better individually. PostgreSQL's generalism is a liability at the write volumes IRCTC generates in a 15-minute window.
 
 ---
 
@@ -627,7 +653,11 @@ The entire mutable state for one train's Tatkal window fits in a smartphone's RA
 
 The previous design — custom Go actor + in-memory map + handwritten WAL + Raft replication — was essentially reimplementing what SQLite already does, but with more code and more failure modes. SQLite in WAL mode is exactly: a write-ahead log, single-writer semantics, ACID transactions, and a page cache that keeps the working set in memory.
 
-### Why this design works well
+```
+Note: __Taking back earlier recommendation ...__
+```
+
+#### Why this design works well
 
 **Single writer, no contention.** One Go booking actor owns one SQLite file per train. No concurrent writers. SQLite's single-writer model is correct by design — you want exactly one writer per train.
 
@@ -643,7 +673,7 @@ The previous design — custom Go actor + in-memory map + handwritten WAL + Raft
 
 **Replay testing fits naturally.** Replay Kafka messages into a fresh SQLite instance per train. Compare output against the reference implementation.
 
-### The drain pattern
+#### The drain pattern
 
 After the booking window closes (~10:20 AM):
 
@@ -657,7 +687,7 @@ After the booking window closes (~10:20 AM):
 
 15-minute SLA. Customer service sees a booking within 15 minutes. For operations during that window, the booking actor handles it — the master DB hasn't taken ownership yet.
 
-### Pros
+#### Pros
 
 - Replaces custom in-memory actor + handwritten WAL + Raft with a 30-year-old battle-tested library
 - Zero distributed coordination overhead for the booking core
@@ -667,7 +697,7 @@ After the booking window closes (~10:20 AM):
 - Drain is simple, verifiable, and retryable
 - SQLite's WAL mode supports concurrent readers while the writer commits
 
-### Cons and open questions
+#### Cons and open questions
 
 **1. HA story requires explicit thought.**
 Options:
@@ -676,6 +706,10 @@ Options:
 
 **2. Turso maturity.**
 Turso (libSQL) is well-engineered but relatively young. Safer path: plain SQLite with WAL streaming to S3, no external SaaS dependency.
+
+```
+Note:** __Making up stories ...__
+```
 
 **3. Managing 200+ SQLite instances.**
 Not hard — it's a loop — but requires tooling to spin up instances before 10 AM, monitor health, trigger drain, archive files.
@@ -703,7 +737,7 @@ Kafka partition (per train+class)
 
 ---
 
-## Were the Earlier Designs Slop? SQLite mmap? SLA Specifics?
+#### Were the Earlier Designs Slop? SQLite mmap? SLA Specifics?
 
 **User questions:**
 1. Can you confirm that your earlier designs were slop?
@@ -759,7 +793,7 @@ On Linux, if the underlying file has an I/O error while mmap'd, the process rece
 
 **Verdict:** Enable it. For the read path on a 1.5 MB database, it's a free optimization. Install a `SIGBUS` handler that logs and triggers failover.
 
-### SLA specifics
+#### SLA specifics
 
 **Drain SLA:**
 
@@ -788,11 +822,13 @@ Turso's published SLA is 99.9% uptime. The more relevant metric — replication 
 
 ---
 
-## Zonal Databases: CockroachDB and ScyllaDB
+#### Zonal Databases: [CockroachDB](https://www.cockroachlabs.com) and [ScyllaDB](https://www.scylladb.com)
 
 **User question:** Why are you assuming a single central database? What prevents us from having zonal databases using a distributed high-performance database product like CockroachDB or ScyllaDB deployed in regional data centers?
 
-### Why the central database assumption was wrong
+**The assumption was wrong, and the correction is architecturally significant**. Let me think through it properly.
+
+#### Why the central database assumption was wrong
 
 Indian Railways is already organizationally zonal — 18 railway zones. The legacy Passenger Reservation System (PRS) already reflected this: regional centers in Delhi, Mumbai, Chennai, Kolkata, and Secunderabad. Centralizing the database was a step backward from an architecture the domain had already evolved toward.
 
@@ -801,7 +837,7 @@ The central database creates:
 - A single point of failure for the entire reservation system
 - Uniform network latency regardless of where a train operates or a passenger queries from
 
-### What zonal deployment looks like
+#### What zonal deployment looks like
 
 Map the architecture to how Indian Railways is already divided:
 
@@ -815,7 +851,7 @@ South Central    → DC in Secunderabad
 
 Each train's booking actor runs in the DC closest to its operational zone. The drain goes to the nearest node. A passenger in Chennai querying PNR status is served by the Chennai node.
 
-### CockroachDB vs ScyllaDB
+#### CockroachDB vs ScyllaDB
 
 **ScyllaDB**
 
@@ -856,7 +892,7 @@ ALTER TABLE train_schedules SET LOCALITY GLOBAL;
 ```
 Train schedules, station codes, quota rules — replicated to all regions. Reads served locally everywhere.
 
-### Head-to-head
+#### Head-to-head
 
 | Property | ScyllaDB | CockroachDB |
 |---|---|---|
@@ -868,7 +904,7 @@ Train schedules, station codes, quota rules — replicated to all regions. Reads
 | Cancellation / refund ACID | Lightweight transactions, limited | Full SERIALIZABLE |
 | Schema evolution | Hard | Easier |
 
-### Recommended: use both
+#### Recommended: use both
 
 ```
 SQLite (per train, per zone DC)
@@ -882,11 +918,11 @@ SQLite (per train, per zone DC)
 
 ---
 
-## Client-Side Routing Intelligence
+#### Client-Side Routing Intelligence
 
 **User observation:** You can build intelligence in the client to route queries to an appropriate regional database.
 
-### Token-aware and shard-aware routing
+##### Token-aware and shard-aware routing
 
 ScyllaDB's driver takes client-side routing furthest. A token-aware driver computes `hash(partition_key)` locally, consults its cached copy of the ring topology, and connects directly to the owning node — no coordinator hop.
 
@@ -920,7 +956,7 @@ This is a static lookup table. Trains don't change zones. Compiled into the serv
 
 **Failover policy:** If the primary regional node is unreachable, route to the next nearest node. Local decision, faster than a server-side timeout.
 
-### The hard problem: read-your-writes
+#### The hard problem: read-your-writes
 
 A passenger confirms a Tatkal booking. The booking actor writes to the Mumbai node. The passenger immediately checks PNR status. If the mobile API backend routes to the Delhi node before replication completes, it reads nothing.
 
@@ -932,7 +968,7 @@ Three ways to handle it:
 
 **Synchronous drain:** The drain from SQLite to ScyllaDB uses `QUORUM` rather than `LOCAL_QUORUM`. Write acknowledged only after majority of replicas across DCs confirm. Consistent everywhere immediately, higher write latency. Acceptable for a drain that happens once post-window.
 
-### Cross-zone queries — scatter-gather
+#### Cross-zone queries — scatter-gather
 
 "Show all trains with Tatkal availability from Delhi to Mumbai tomorrow" — spans multiple zones. The client fans out in parallel:
 
@@ -943,7 +979,7 @@ query → [Delhi node, Mumbai node, Western node] simultaneously
 
 Client-side scatter-gather distributes the work. Routing through a coordinator that does the same thing internally adds a coordinator hop and a single bottleneck.
 
-### ScyllaDB vs CockroachDB routing philosophy
+#### ScyllaDB vs CockroachDB routing philosophy
 
 ScyllaDB pushes intelligence to the client, keeps the database simple. CockroachDB keeps the client simple, puts intelligence in the database layer via `REGIONAL BY ROW`. For IRCTC where multiple client types exist (booking actors, CSR terminals, mobile apps, reporting tools), ScyllaDB's approach requires embedding routing logic in every client, while CockroachDB's approach centralizes it once in the schema. Both are valid tradeoffs.
 
