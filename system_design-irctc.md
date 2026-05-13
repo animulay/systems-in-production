@@ -13,10 +13,12 @@ Q2. Why does predictability make the problem harder not easier?
 
 and it provided some good explanation about the differences.
 
-As a natural follow up question, I asked Claude how it would design such system from scratch and followed up with several questions about various assumptions, design choices etc.
+As a natural follow up question, I asked Claude how it would design such system from scratch and followed up with several questions about various assumptions, design choices etc.<br>
+
+I have posted some notes identifying the errors, fake claims, AI slop etc. but it is not an exhaustive list.
 
 ```
-My conclusions:<br>
+My conclusions:
 1. LLMs operate on an index built over vast knowledgebase. They can be a good companion for research.
 2. But LLM's also fake things with confidence.
 3. In some cases, as the conversation progresses, the quality of responses tend to degrade.
